@@ -75,17 +75,29 @@
         .result { margin-top: 22px; display: none; }
         .result.show { display: block; }
         video { width: 100%; border-radius: 10px; background: #000; margin-bottom: 14px; }
+        .result-meta {
+            font-size: 13px;
+            color: #9aa0b8;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .result-meta b { color: #e7e9f0; font-weight: 600; }
         .download {
             display: inline-block;
             text-decoration: none;
             text-align: center;
             width: 100%;
             background: #21c07a;
-            padding: 13px;
+            padding: 14px;
             border-radius: 10px;
             color: white;
-            font-weight: 600;
+            font-weight: 700;
+            font-size: 15px;
+            transition: background .15s;
         }
+        .download:hover { background: #26d488; }
         .hint { color: #7a80a0; font-size: 12px; margin-top: 14px; line-height: 1.5; }
     </style>
 </head>
@@ -107,12 +119,13 @@
 
         <div class="result" id="result">
             <video id="video" controls></video>
+            <div class="result-meta" id="resultMeta"></div>
             <a class="download" id="download" download>⬇ Download MP4</a>
         </div>
 
         <p class="hint">
             Tip: badi/lambi website me zyada time lagega (browser poore page ko scroll karta hai).
-            Video 1080p @ 30fps banti hai.
+            Video 1080p @ 60fps banti hai.
         </p>
     </div>
 
@@ -124,8 +137,23 @@
         const result = document.getElementById('result');
         const video = document.getElementById('video');
         const download = document.getElementById('download');
+        const resultMeta = document.getElementById('resultMeta');
 
         let timerId = null;
+        let lastObjectUrl = null;
+
+        // bytes ko readable form me (KB/MB)
+        function formatSize(bytes) {
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // URL se ek saaf sa filename banao, jaise: example.com-recording.mp4
+        function makeFileName(url) {
+            let host = 'recording';
+            try { host = new URL(url).hostname.replace(/^www\./, ''); } catch {}
+            return `${host}-recording.mp4`;
+        }
 
         function setStatus(msg, isError = false) {
             status.classList.add('show');
@@ -164,10 +192,20 @@
                 }
 
                 const blob = await res.blob();
+
+                // pichli video ka object URL free karo (memory leak se bacho)
+                if (lastObjectUrl) URL.revokeObjectURL(lastObjectUrl);
                 const objectUrl = URL.createObjectURL(blob);
+                lastObjectUrl = objectUrl;
+
+                const fileName = makeFileName(url);
                 video.src = objectUrl;
                 download.href = objectUrl;
-                download.download = 'recording.mp4';
+                download.download = fileName;      // website ke naam se download hoga
+
+                resultMeta.innerHTML =
+                    `<span>📁 <b>${fileName}</b></span><span>${formatSize(blob.size)}</span>`;
+
                 status.classList.remove('show');
                 result.classList.add('show');
             } catch (err) {
