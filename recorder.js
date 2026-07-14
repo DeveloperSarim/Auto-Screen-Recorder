@@ -15,7 +15,7 @@ const { PuppeteerScreenRecorder } = require('puppeteer-screen-recorder');
 async function recordWebsite({
     url,
     savePath,
-    pixelsPerSecond = 250,
+    pixelsPerSecond = 180,
     maxScrollMs = 120000,
     onLog = () => {},
 }) {
@@ -56,24 +56,33 @@ async function recordWebsite({
         await page.evaluate(
             async (pps, maxMs) => {
                 await new Promise((resolve) => {
-                    const fps = 60;                        // recorder ke 60fps se match (smooth)
-                    const distance = pps / fps;            // ~4px per step (chhota = smooth)
-                    const delay = 1000 / fps;              // ~16ms
-                    const startTime = Date.now();
+                    // Time-based scroll: har frame par asli beeta hua waqt dekh kar
+                    // scroll karta hai -> frame-rate se independent, bilkul smooth.
+                    let done = false;
+                    const finish = () => {
+                        if (!done) { done = true; resolve(); }
+                    };
+                    // Safety: agar kisi wajah se rAF ruk jaye to bhi hang na ho
+                    const watchdog = setTimeout(finish, maxMs);
 
-                    const timer = setInterval(() => {
-                        window.scrollBy(0, distance);
+                    let last = performance.now();
+                    function step(now) {
+                        if (done) return;
+                        const dt = Math.min(now - last, 100); // bade jumps clamp
+                        last = now;
+                        window.scrollBy(0, (pps * dt) / 1000);
 
                         const atBottom =
                             window.innerHeight + window.scrollY >=
                             document.body.scrollHeight - 2;
-                        const timedOut = Date.now() - startTime > maxMs;
-
-                        if (atBottom || timedOut) {
-                            clearInterval(timer);
-                            resolve();
+                        if (atBottom) {
+                            clearTimeout(watchdog);
+                            finish();
+                            return;
                         }
-                    }, delay);
+                        requestAnimationFrame(step);
+                    }
+                    requestAnimationFrame(step);
                 });
             },
             pixelsPerSecond,
