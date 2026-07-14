@@ -22,7 +22,8 @@ async function recordWebsite({
     const browser = await puppeteer.launch({
         headless: true,
         defaultViewport: { width: 1920, height: 1080 },
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        // server/VPS ke liye zaroori flags (dev-shm crash se bachao)
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
 
     try {
