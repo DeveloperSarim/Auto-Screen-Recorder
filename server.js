@@ -64,7 +64,8 @@ app.post('/record', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+// '0.0.0.0' -> saare network interfaces par sunega (bahar se access ke liye zaroori)
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n  Auto Screen Recorder chal raha hai:`);
-    console.log(`  ->  http://localhost:${PORT}\n`);
+    console.log(`  ->  http://localhost:${PORT}  (aur bahar se http://<VPS_IP>:${PORT})\n`);
 });
