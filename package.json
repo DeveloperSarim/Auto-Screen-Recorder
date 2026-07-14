@@ -1,0 +1,19 @@
+{
+  "name": "auto-screen-recorder",
+  "version": "1.0.0",
+  "description": "Ek website ko smooth scroll karte hue record karke MP4 banata hai (CLI + web version)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "cli": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1",
+    "puppeteer": "^25.3.0",
+    "puppeteer-screen-recorder": "^3.0.6"
+  }
+}

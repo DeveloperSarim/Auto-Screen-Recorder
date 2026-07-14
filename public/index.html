@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto Screen Recorder</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0f1220;
+            color: #e7e9f0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            width: 100%;
+            max-width: 560px;
+            background: #171a2b;
+            border: 1px solid #262a42;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.4);
+        }
+        h1 { font-size: 22px; margin-bottom: 6px; }
+        .sub { color: #9aa0b8; font-size: 14px; margin-bottom: 24px; }
+        label { display: block; font-size: 13px; color: #9aa0b8; margin-bottom: 8px; }
+        .row { display: flex; gap: 10px; }
+        input[type="url"] {
+            flex: 1;
+            padding: 13px 14px;
+            font-size: 15px;
+            border-radius: 10px;
+            border: 1px solid #2e3352;
+            background: #0f1220;
+            color: #e7e9f0;
+            outline: none;
+        }
+        input[type="url"]:focus { border-color: #5b6cff; }
+        button {
+            padding: 13px 22px;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            background: #5b6cff;
+            color: white;
+            cursor: pointer;
+            transition: background .15s;
+            white-space: nowrap;
+        }
+        button:hover:not(:disabled) { background: #6c7bff; }
+        button:disabled { opacity: .55; cursor: not-allowed; }
+        .status {
+            margin-top: 22px;
+            font-size: 14px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+        .status.show { display: flex; }
+        .spinner {
+            width: 18px; height: 18px;
+            border: 3px solid #2e3352;
+            border-top-color: #5b6cff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error { color: #ff7a7a; }
+        .result { margin-top: 22px; display: none; }
+        .result.show { display: block; }
+        video { width: 100%; border-radius: 10px; background: #000; margin-bottom: 14px; }
+        .download {
+            display: inline-block;
+            text-decoration: none;
+            text-align: center;
+            width: 100%;
+            background: #21c07a;
+            padding: 13px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+        }
+        .hint { color: #7a80a0; font-size: 12px; margin-top: 14px; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🎬 Auto Screen Recorder</h1>
+        <p class="sub">URL daalein, hum us page ko smooth scroll karte hue record karke video de denge.</p>
+
+        <label for="url">Website ka URL</label>
+        <div class="row">
+            <input type="url" id="url" placeholder="https://example.com" />
+            <button id="btn">Record</button>
+        </div>
+
+        <div class="status" id="status">
+            <div class="spinner"></div>
+            <span id="statusText">Ban rahi hai...</span>
+        </div>
+
+        <div class="result" id="result">
+            <video id="video" controls></video>
+            <a class="download" id="download" download>⬇ Download MP4</a>
+        </div>
+
+        <p class="hint">
+            Tip: badi/lambi website me zyada time lagega (browser poore page ko scroll karta hai).
+            Video 1080p @ 30fps banti hai.
+        </p>
+    </div>
+
+    <script>
+        const btn = document.getElementById('btn');
+        const urlInput = document.getElementById('url');
+        const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+        const result = document.getElementById('result');
+        const video = document.getElementById('video');
+        const download = document.getElementById('download');
+
+        let timerId = null;
+
+        function setStatus(msg, isError = false) {
+            status.classList.add('show');
+            status.querySelector('.spinner').style.display = isError ? 'none' : 'block';
+            statusText.textContent = msg;
+            statusText.className = isError ? 'error' : '';
+        }
+
+        async function record() {
+            const url = urlInput.value.trim();
+            if (!url) { setStatus('Pehle URL daalein.', true); return; }
+
+            btn.disabled = true;
+            result.classList.remove('show');
+            let seconds = 0;
+            setStatus('Recording ban rahi hai... 0s');
+            timerId = setInterval(() => {
+                seconds++;
+                setStatus(`Recording ban rahi hai... ${seconds}s`);
+            }, 1000);
+
+            try {
+                const res = await fetch('/record', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url }),
+                });
+
+                clearInterval(timerId);
+
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    setStatus(data.error || 'Kuch galat ho gaya.', true);
+                    btn.disabled = false;
+                    return;
+                }
+
+                const blob = await res.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                video.src = objectUrl;
+                download.href = objectUrl;
+                download.download = 'recording.mp4';
+                status.classList.remove('show');
+                result.classList.add('show');
+            } catch (err) {
+                clearInterval(timerId);
+                setStatus('Server se connect nahi ho paya: ' + err.message, true);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        btn.addEventListener('click', record);
+        urlInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') record();
+        });
+    </script>
+</body>
+</html>
